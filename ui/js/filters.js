@@ -128,8 +128,8 @@ treeherder.filter('getRevisionUrl', ['thServiceDomain', function(thServiceDomain
 }]);
 
 treeherder.filter('classified', function() {
-    return function(matches){
-        return matches.some(function(x) {return x.is_best;}) ? "CLASSIFIED" : "UNCLASSIFIED";
+    return function(line){
+        return line.best_classification !== null ? "CLASSIFIED" : "UNCLASSIFIED";
     };
 });
 
