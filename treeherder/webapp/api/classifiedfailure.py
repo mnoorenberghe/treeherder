@@ -1,9 +1,11 @@
 import rest_framework_filters as filters
 from rest_framework import viewsets
+from rest_framework.decorators import detail_route
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 
-from treeherder.model.models import ClassifiedFailure
+from treeherder.model.models import (ClassifiedFailure,
+                                     FailureLine)
 from treeherder.webapp.api import serializers
 from treeherder.webapp.api.utils import as_dict
 
@@ -24,7 +26,7 @@ class ClassifiedFailureViewSet(viewsets.ModelViewSet):
         try:
             obj = ClassifiedFailure.objects.get(id=pk)
         except ClassifiedFailure.DoesNotExist:
-            return Response("No classified failure with id %i" % pk, 500)
+            return Response("No classified failure with id %s" % pk, 500)
 
         return Response(self.serializer_class(obj).data)
 
@@ -93,3 +95,11 @@ class ClassifiedFailureViewSet(viewsets.ModelViewSet):
             status = 400
 
         return Response(body, status)
+
+    @detail_route(methods=['get'])
+    def matches(self, request, pk=None):
+        limit = request.GET.get("limit", 100)
+        lines = FailureLine.objects.filter(
+            best_classification__id=pk).prefetch_related('matches')[:limit]
+
+        return Response(serializers.FailureLineNoStackSerializer(lines, many=True).data)
