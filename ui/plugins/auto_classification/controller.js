@@ -63,7 +63,7 @@ treeherder.controller('ClassificationPluginCtrl', [
                     if (cf.bug_number !== null) {
                         var bug_summary = cf.bug ? cf.bug.summary : "";
                         line.ui.options.push({id: cf.id,
-                                              bug_number: cf.id,
+                                              bug_number: cf.bug_number,
                                               bug_summary: bug_summary,
                                               type: "classified_failure"});
                     }
@@ -124,12 +124,12 @@ treeherder.controller('ClassificationPluginCtrl', [
         };
 
         $scope.canSave = function(line) {
-            return line.ui.options[line.ui.selectedOption].bug_number || $scope.manualBugs[line.id]
-        }
+            return line.ui.options[line.ui.selectedOption].bug_number || $scope.manualBugs[line.id];
+        };
 
         $scope.canSaveAll = function(line) {
-            return _.every($scope.failureLines, (line) => $scope.canSave(line))
-        }
+            return _.every($scope.failureLines, function(line) {return $scope.canSave(line);});
+        };
 
         $scope.getSaveButtonText = function(line) {
             if (line.best_classification === line.ui.options[line.ui.selectedOption].id) {
@@ -159,6 +159,82 @@ treeherder.controller('ClassificationPluginCtrl', [
                 thNotify.send("Invalid bug number: " + bug_number, "danger", true);
             }
 
+        };
+
+        $scope.saveAll = function() {
+            var failureLines = $scope.failureLines;
+
+            var byType = _.partition(
+                failureLines,
+                function(line) {
+                    return line.ui.options[line.ui.selectedOption].type == "classified_failure";
+                });
+
+            var autoclassified = byType[0];
+            var unstructured = byType[1];
+
+            var byHasBug = _.partition(
+                autoclassified,
+                function(line) {return !!line.ui.options[line.ui.selectedOption].bug_number;});
+
+            var hasBug = byHasBug[0];
+            var toCreateBug = byHasBug[1];
+
+            var updateClassifications = _.map(
+                toCreateBug,
+                function(line) {
+                    return {id: line.ui.options[line.ui.selectedOption].id,
+                            bug_number: $scope.manualBugs[line.id]};
+                }
+            );
+
+            var newClassifications = _.map(
+                unstructured,
+                function(line) {
+                    var option = line.ui.options[line.ui.selectedOption];
+                    var bug_number = option.bug_number ? option.bug_number : $scope.manualBugs[line.id];
+                    return {bug_number: bug_number};
+                }
+            );
+
+            // Map of failure line id to best classified failure id
+            var bestClassifications = _.map(
+                hasBug,
+                function (line) {
+                    return {
+                        id: line.id,
+                        best_classification: line.ui.options[line.ui.selectedOption].id
+                    };
+                });
+
+            function updateBestClassifications(lines, classifiedFailures) {
+                bestClassifications = _.union(
+                    bestClassifications,
+                    _.map(_.zip(lines, classifiedFailures),
+                          function(item) {
+                              return {id: item[0].id,
+                                      best_classification: item[1].id};
+                          }));
+            }
+
+            ThClassifiedFailuresModel.createMany(newClassifications)
+                .then(function(resp) {
+                    if (resp) {
+                        updateBestClassifications(unstructured, resp.data);
+                    }
+                })
+                .then(function() {
+                    return ThClassifiedFailuresModel.updateMany(updateClassifications);
+                })
+                .then(function(resp) {
+                    if (resp) {
+                        updateBestClassifications(toCreateBug, resp.data);
+                    }
+                })
+                .then(function() {return ThFailureLinesModel.verifyMany(bestClassifications);})
+                .then(function() {thNotify.send("Classifications saved", "success");})
+                .catch(function(err) {thNotify.send("Error saving classifications:\n " + err + err.stack, "danger");})
+                .then(function() {thTabs.tabs.autoClassification.update();});
         };
 
         var verifyLine = function(line, cf) {
