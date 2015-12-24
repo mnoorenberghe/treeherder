@@ -337,9 +337,6 @@ ALLOWED_HOSTS = env.list("TREEHERDER_ALLOWED_HOSTS", default=[".mozilla.org", ".
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# Set this to True to submit bug associations to Elasticsearch.
-MIRROR_CLASSIFICATIONS = True
-
 # timeout for requests to external sources
 # like ftp.mozilla.org or hg.mozilla.org
 REQUESTS_TIMEOUT = 30
