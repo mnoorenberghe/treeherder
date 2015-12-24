@@ -452,7 +452,7 @@ class JobsModel(TreeherderModelBase):
         except IntegrityError as e:
             raise JobDataIntegrityError(e)
 
-        if settings.MIRROR_CLASSIFICATIONS:
+        if settings.ORANGEFACTOR_API_KEY:
             job = self.get_job(job_id)[0]
             if job["state"] == "completed":
                 # importing here to avoid an import loop
