@@ -562,3 +562,11 @@ ul.failure-line-list {
 .failure-lines-save-all > button {
   position: absolute;
 }
+
+.ignored-line {
+  text-decoration: line-through;
+}
+
+.label-ignored {
+  background-color: lightgrey;
+}

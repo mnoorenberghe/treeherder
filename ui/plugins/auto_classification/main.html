@@ -5,24 +5,28 @@
     <li ng-repeat="line in failureLines"
         class="failure-line"
         ng-class="{'classified-line': line.best_classification }">
-      <div>
+      <div class="failure-line-detail">
         <button ng-if="!line.best_is_verified"
                 class="btn btn-xs btn-default"
                 title="Select best match and click here"
                 ng-disabled="!canSave(line)"
                 ng-click="save(line)">{{getSaveButtonText(line)}}</button>
-      </div>
-      <div class="failure-line-detail">
-        <span ng-if="line.best_is_verified"
-              class="label label-xs label-primary"
-              title="This classification is already verified">Verified</span>
+        <span ng-if="line.best_is_verified">
+            <span ng-if="!isLineIgnored(line)"
+                  class="label label-xs label-primary"
+                  title="This classification is verified">Verified</span>
+
+            <span ng-if="isLineIgnored(line)"
+                  class="label label-xs label-ignored"
+                  title="This line is ignored">Ignored</span>
+        </span>
         <span ng-if="line.action === 'test_result'">
-          <span>
+          <span ng-class="{'ignored-line': (isLineIgnored(line))}">
             <span ng-bind-html="line | expectedString"></span>
             | <strong>{{line.test}}</strong>
             <span ng-if="line.subtest">| {{line.subtest}}</span>
           </span>
-          <div ng-if="line.message"
+          <div ng-if="line.message && !isLineIgnored(line)"
                ng-init="messageExpanded=false"
                class="failure-line-message">
             <span class="failure-line-message-toggle fa fa-fw fa-lg"
@@ -44,7 +48,7 @@
           CRASH | {{line.signature}}
         </span>
 
-        <div ng-if="line.best_is_verified">
+        <div ng-if="line.best_is_verified && !isLineIgnored(line)">
           <span class="glyphicon glyphicon-star best-classification-star"></span>
           <span class="line-option-text" ng-if="line.ui.best.bug_number">
             <a href="{{::getBugUrl(line.ui.best.bug_number) }}"
@@ -64,12 +68,6 @@
                 <span ng-if="option.icon_type == 'autoclassified'"
                       class="glyphicon glyphicon-star-empty"
                       title="This is the option Treeherder chose as the best"></span>
-                <a ng-if="option.icon_type == 'set_bug'"
-                   class="glyphicon glyphicon-pushpin classification-set-bug btn btn-default btn-xs"
-                   prevent-default-on-left-click=""
-                   ng-click="setAutoclassifiedBugNumber(line, option.bug_number)"
-                   title="Use bug number for best classification"
-                   ></a>
                 <span ng-if="option.icon_type == 'none'"
                       class="classification-no-icon">&nbsp;</span>
               </div>
@@ -84,7 +82,10 @@
                         ng-bind-html="option.bug_summary | escapeHTML | highlightCommonTerms:line.test:line.subtest:line.status:line.expected"></span>
                 </a>
               </span>
-              <span ng-if="!option.bug_number">
+              <span ng-if="option.type==='ignore'"
+                    class="line-option-text"
+                    title="Ignore this line with regard to job classification"> Ignore this line</span>
+              <span ng-if="option.bug_number===null">
                 <input class="manual-bug-input"
                        type="text"
                        placeholder="Enter a bug number"

@@ -38,7 +38,7 @@ class ClassifiedFailureViewSet(viewsets.ModelViewSet):
 
         for item in data:
             bug = item.get('bug_number')
-            if bug:
+            if bug >= 0:
                 obj, _ = ClassifiedFailure.objects.get_or_create(bug_number=bug)
             else:
                 obj = ClassifiedFailure()

@@ -163,11 +163,15 @@ treeherder.controller('ClassificationPluginCtrl', [
                         matches: null
                     });
                 }
+                line.ui.options.push({
+                    id: "ignore",
+                    type: "ignore",
+                    bug_number: 0,
+                    matches: null
+                });
 
                 _.forEach(line.ui.options, function(option) {
-                    option.icon_type = option.is_best ? "autoclassified" :
-                        (line.ui.best && !line.ui.best.bug_number && option.bug_number ?
-                         'set_bug' : 'none');
+                    option.icon_type = option.is_best ? "autoclassified" : 'none';
                 });
 
                 // choose first in list as lineSelection
@@ -175,12 +179,25 @@ treeherder.controller('ClassificationPluginCtrl', [
             });
         };
 
-        $scope.setAutoclassifiedBugNumber = function(line, bug_number) {
-            $scope.manualBugs[line.id] = bug_number;
+        /**
+         * A line has been selected as ignored if its bug_number is set to 0.
+         */
+        $scope.isLineIgnored = function(line) {
+            return line.ui.options[line.ui.selectedOption].bug_number === 0 ||
+                   line.ui.best.bug_number === 0;
+        };
+
+        /**
+         * A bug number can either be a real bug id in bugzilla, or 0.
+         * 0 indicates that the line has been ignored with regard to
+         * the error classification.
+         */
+        var isValidBugNumber = function(bug_number) {
+            return bug_number >= 0;
         };
 
         $scope.canSave = function(line) {
-            return (line.ui.options[line.ui.selectedOption].bug_number ||
+            return (isValidBugNumber(line.ui.options[line.ui.selectedOption].bug_number) ||
                     $scope.manualBugs[line.id]);
         };
 
@@ -193,6 +210,8 @@ treeherder.controller('ClassificationPluginCtrl', [
             if (!line.ui ||
                 line.best_classification === line.ui.options[line.ui.selectedOption].id) {
                 return "Verify";
+            } else if ($scope.isLineIgnored(line)) {
+                return "Save";
             } else if (line.best_classification) {
                 return "Override";
             } else {
@@ -202,15 +221,16 @@ treeherder.controller('ClassificationPluginCtrl', [
 
         $scope.save = function(line) {
             var selected = line.ui.options[line.ui.selectedOption];
-            var bug_number = selected.bug_number ? selected.bug_number : $scope.manualBugs[line.id];
+            var bug_number = isValidBugNumber(selected.bug_number) ? selected.bug_number : $scope.manualBugs[line.id];
 
-            if (_.parseInt(bug_number)) {
+            if (_.parseInt(bug_number) >= 0) {
 
                 switch (selected.type) {
                     case "classified_failure":
                         verifyClassifiedFailure(line, selected, bug_number);
                         break;
                     case "unstructured_bug":
+                    case "ignore":
                         verifyUnstructuredBug(line, bug_number);
                         break;
                 }
@@ -251,7 +271,7 @@ treeherder.controller('ClassificationPluginCtrl', [
                 unstructured,
                 function(line) {
                     var option = line.ui.options[line.ui.selectedOption];
-                    var bug_number = option.bug_number ? option.bug_number : $scope.manualBugs[line.id];
+                    var bug_number = isValidBugNumber(option.bug_number) ? option.bug_number : $scope.manualBugs[line.id];
                     return {bug_number: bug_number};
                 }
             );
